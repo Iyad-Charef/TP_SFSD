@@ -5,8 +5,12 @@
 
 #include "functions.h"
 
+//------------------------
+// Global Constants
+//------------------------
 int K_FRAGMENTS = 5;
 int M_BUFFERS = 3;
+
 //------------------------
 // Machine abstraite Tnof
 //------------------------
@@ -17,7 +21,7 @@ void TnOF_open(t_TnOF **F, char *fname, char mode)
         perror("TnOF_open: malloc failed");
         exit(EXIT_FAILURE);
     }
-    
+    //open existing file for reading/writing
     if (mode == 'E' || mode == 'e') {
         (*F)->f = fopen(fname, "rb+");
         if ((*F)->f == NULL) {
@@ -26,12 +30,14 @@ void TnOF_open(t_TnOF **F, char *fname, char mode)
         }
         fread(&((*F)->h), sizeof(t_header), 1, (*F)->f);
     }
+    //create new file
     else {
         (*F)->f = fopen(fname, "wb+");
         if ((*F)->f == NULL) {
             perror("TnOF_open");
             exit(EXIT_FAILURE);
         }
+        //initialize header
         (*F)->h.nBlock = 0;
         (*F)->h.nIns = 0;
         (*F)->h.nDel = 0;
@@ -275,6 +281,7 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
 
 int search_in_fragments(char *key, int K, int *fragment_num, long *block_num, int *position, t_rec *record)
 {
+    // determine fragment using hash function
     *fragment_num = hash_function(key, K);
     
     char fname[50];
@@ -285,17 +292,17 @@ int search_in_fragments(char *key, int K, int *fragment_num, long *block_num, in
     
     long N = getHeader(fragment_file, "nBlock");
     t_block buf;
-    
+    // Sequential search through all blocks in fragment
     for (long i = 1; i <= N; i++) {
         TnOF_readBlock(fragment_file, i, &buf);
-        
+        // search through records
         for (int j = 0; j < buf.nb; j++) {
             if (buf.del[j] != '*' && strcmp(buf.tab[j].key, key) == 0) {
                 *block_num = i;
                 *position = j;
                 *record = buf.tab[j];
                 TnOF_close(fragment_file);
-                return 1;
+                return 1; // record found
             }
         }
     }
@@ -310,23 +317,24 @@ int insert_into_fragments(t_rec record, int K)
     long block_num;
     int pos;
     t_rec existing_rec;
-    
+    // check if record already exists 
     if (search_in_fragments(record.key, K, &frag_num, &block_num, &pos, &existing_rec)) {
         printf("Error: Key '%s' already exists in fragment %d\n", record.key, frag_num);
         return 0;
     }
-    
+    // determine target fragment using hash function
     int fragment_num = hash_function(record.key, K);
     
     char fname[50];
     get_fragment_filename(fragment_num, fname);
     
     t_TnOF *fragment_file;
+    // open fragment file for writing
     TnOF_open(&fragment_file, fname, 'E');
     
     long N = getHeader(fragment_file, "nBlock");
     t_block buf;
-    
+    // try to insert in last block if it's possible
     if (N > 0) {
         TnOF_readBlock(fragment_file, N, &buf);
         
@@ -339,19 +347,20 @@ int insert_into_fragments(t_rec record, int K)
             setHeader(fragment_file, "nIns", nIns + 1);
             TnOF_close(fragment_file);
             printf("Record with key '%s' inserted in fragment %d, block %ld\n", record.key, fragment_num, N);
-            return 1;
+            return 1; // inserted
         }
     }
-    
+    // create new block 
     buf.nb = 1;
     buf.tab[0] = record;
     buf.del[0] = ' ';
     for (int i = 1; i < MAXTAB; i++) {
         buf.del[i] = ' ';
     }
-    
+    // write new block
     long new_block = N + 1;
     TnOF_writeBlock(fragment_file, new_block, &buf);
+    // upate headers
     setHeader(fragment_file, "nBlock", new_block);
     long nIns = getHeader(fragment_file, "nIns");
     setHeader(fragment_file, "nIns", nIns + 1);
@@ -367,7 +376,7 @@ int delete_from_fragments(char *key, int K)
     long block_num;
     int position;
     t_rec record;
-    
+    // find record first
     if (!search_in_fragments(key, K, &fragment_num, &block_num, &position, &record)) {
         printf("Error: Key '%s' not found\n", key);
         return 0;
@@ -375,16 +384,17 @@ int delete_from_fragments(char *key, int K)
     
     char fname[50];
     get_fragment_filename(fragment_num, fname);
-    
+    // open fragment file for writing
     t_TnOF *fragment_file;
     TnOF_open(&fragment_file, fname, 'E');
-    
+    // read block containing the record
     t_block buf;
     TnOF_readBlock(fragment_file, block_num, &buf);
-    
+    // logically deleting record
     buf.del[position] = '*';
+    // write updated block
     TnOF_writeBlock(fragment_file, block_num, &buf);
-    
+    // update header
     long nDel = getHeader(fragment_file, "nDel");
     setHeader(fragment_file, "nDel", nDel + 1);
     
@@ -394,6 +404,9 @@ int delete_from_fragments(char *key, int K)
     return 1;
 }
 
+//-------------------------------------------------------------------
+// DISPLAY FUNCTIONS
+//-------------------------------------------------------------------
 void display_fragment(int fragment_num)
 {
     char fname[50];
@@ -470,6 +483,9 @@ void display_statistics(int K)
     printf("================================\n\n");
 }
 
+//-------------------------------------------------------------------
+// SAMPLE FILE CREATION
+//-------------------------------------------------------------------
 void create_sample_file(char *filename, int num_records)
 {
     t_TnOF *file;
@@ -479,18 +495,19 @@ void create_sample_file(char *filename, int num_records)
     buf.nb = 0;
     
     printf("Creating sample file '%s' with %d records...\n", filename, num_records);
-    
+    // generate test keys
     for (int i = 0; i < num_records; i++) {
         t_rec rec;
         sprintf(rec.key, "KEY%04d", i);
         sprintf(rec.name, "Student %d", i);
         rec.age = 18 + (i % 10);
-        
+        // fill the buffer
         if (buf.nb < MAXTAB) {
             buf.tab[buf.nb] = rec;
             buf.del[buf.nb] = ' ';
             buf.nb++;
-        } else {
+        }// write block to file
+         else {
             long next_block = getHeader(file, "nBlock") + 1;
             TnOF_writeBlock(file, next_block, &buf);
             setHeader(file, "nBlock", next_block);
@@ -502,7 +519,7 @@ void create_sample_file(char *filename, int num_records)
             buf.del[0] = ' ';
         }
     }
-    
+    // write remaining records in buffer
     if (buf.nb > 0) {
         long next_block = getHeader(file, "nBlock") + 1;
         TnOF_writeBlock(file, next_block, &buf);

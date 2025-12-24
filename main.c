@@ -1,7 +1,20 @@
 #include "functions.h"
+#include "stdlib.h"
+
+#ifdef _WIN32
+    #define CLEAR_SCREEN "cls"
+#else
+    #define CLEAR_SCREEN "clear"
+#endif
+
+void clear_screen()
+{
+    system(CLEAR_SCREEN);
+}
 
 void display_menu()
 {
+    clear_screen();
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════╗\n");
     printf("║      FILE PARTITIONING BY HASHING - MAIN MENU             ║\n");
@@ -29,6 +42,7 @@ void clear_input_buffer()
 
 void create_sample_file_menu()
 {
+    clear_screen();
     char filename[100];
     int num_records;
     
@@ -50,6 +64,7 @@ void create_sample_file_menu()
 
 void partition_file_menu()
 {
+    clear_screen();
     char filename[100];
     
     printf("\n--- Partition File by Hashing ---\n");
@@ -66,6 +81,7 @@ void partition_file_menu()
 
 void search_record_menu()
 {
+    clear_screen();
     char key[MAX_KEY_LEN];
     int fragment_num;
     long block_num;
@@ -93,6 +109,7 @@ void search_record_menu()
 
 void insert_record_menu()
 {
+    clear_screen();
     t_rec record;
     
     printf("\n--- Insert a Record ---\n");
@@ -117,6 +134,7 @@ void insert_record_menu()
 
 void delete_record_menu()
 {
+    clear_screen();
     char key[MAX_KEY_LEN];
     
     printf("\n--- Delete a Record ---\n");
@@ -142,6 +160,7 @@ void delete_record_menu()
 
 void display_fragment_menu()
 {
+    clear_screen();
     int fragment_num;
     
     printf("\n--- Display a Specific Fragment ---\n");
@@ -150,6 +169,7 @@ void display_fragment_menu()
     clear_input_buffer();
     
     if (fragment_num >= 0 && fragment_num < K_FRAGMENTS) {
+        clear_screen();
         display_fragment(fragment_num);
     } else {
         printf("Invalid fragment number!\n");
@@ -158,6 +178,7 @@ void display_fragment_menu()
 
 void configure_k_m_menu()
 {
+    clear_screen();
     int k, m;
     
     printf("\n--- Configure K and M ---\n");
@@ -181,6 +202,7 @@ void configure_k_m_menu()
 
 int main()
 {
+    clear_screen();
     int choice;
     
     printf("\n");
@@ -214,15 +236,18 @@ int main()
                 display_fragment_menu();
                 break;
             case 7:
+                clear_screen();
                 display_all_fragments(K_FRAGMENTS);
                 break;
             case 8:
+                clear_screen();
                 display_statistics(K_FRAGMENTS);
                 break;
             case 9:
                 configure_k_m_menu();
                 break;
             case 0:
+                clear_screen();
                 printf("\nExiting program. Goodbye!\n");
                 return 0;
             default:
@@ -231,6 +256,7 @@ int main()
         
         printf("\nPress Enter to continue...");
         getchar();
+        clear_screen();
     }
     
     return 0;
