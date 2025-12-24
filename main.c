@@ -1,3 +1,10 @@
+/*
+╔════════════════════════════════════════════════════════════╗
+║                SFSD Practica Work (TP)                     ║
+║              FILE PARTITIONING BY HASHING                  ║
+║    By:    Charef Iyad G11 ║ Amer el Khedoud youcef G11     ║
+╠════════════════════════════════════════════════════════════╣
+*/
 #include "functions.h"
 #include "stdlib.h"
 
@@ -207,8 +214,9 @@ int main()
     
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════╗\n");
-    printf("║         FILE PARTITIONING BY HASHING SYSTEM               ║\n");
-    printf("║         SFSD - 2CP - ESI - 2024/2025                      ║\n");
+    printf("║         FILE PARTITIONING BY HASHING SYSTEM                ║\n");
+    printf("║         SFSD - 2CP - ESI - 2024/2025                       ║\n");
+    printf("║    By:    Charef Iyad G11 ║ Amer el Khedoud youcef G11     ║\n");
     printf("╚════════════════════════════════════════════════════════════╝\n");
     
     while (1) {
@@ -260,4 +268,5 @@ int main()
     }
     
     return 0;
+
 }
