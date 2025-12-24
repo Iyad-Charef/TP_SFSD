@@ -7,7 +7,9 @@
 
 int K_FRAGMENTS = 5;
 int M_BUFFERS = 3;
-
+//------------------------
+// Machine abstraite Tnof
+//------------------------
 void TnOF_open(t_TnOF **F, char *fname, char mode)
 {
     *F = malloc(sizeof(t_TnOF));
@@ -76,6 +78,10 @@ long getHeader(t_TnOF *F, char *hname)
     return -1;
 }
 
+//----------------------
+// uniform hashing function
+//-------------------
+
 int hash_function(char *key, int K)
 {
     unsigned long hash = 0;
@@ -83,30 +89,39 @@ int hash_function(char *key, int K)
         hash = hash * 31 + key[i];
     }
     return hash % K;
+    // returns the Asci sum of KEY Mod K
 }
 
+// simplify manipulating multiple filenames
 void get_fragment_filename(int fragment_num, char *filename)
 {
     sprintf(filename, "fragment_%d.dat", fragment_num);
 }
 
+
+//----------------------------------------------------------------------------------------
+// Partioning function with multiple passes using M buffers and a K uniforme hashing function 
+//------------------------------------------------------------------------------------------
+
 void partition_file_by_hashing(char *source_filename, int K, int M)
 {
     printf("\n╔════════════════════════════════════════════════════════════╗\n");
-    printf("║      FILE PARTITIONING BY HASHING - OFFICIAL SOLUTION     ║\n");
-    printf("║             Based on SFSD Exam 2023/2024 - Q3a            ║\n");
+    printf("║      FILE PARTITIONING BY HASHING                          ║\n");
     printf("╚════════════════════════════════════════════════════════════╝\n\n");
     
     printf("Source file: %s\n", source_filename);
     printf("Number of fragments (K): %d\n", K);
     printf("Number of buffers (M): %d\n\n", M);
     
+    // Opening File, header
+
     t_TnOF *F;
     TnOF_open(&F, source_filename, 'E');
     
     long N = getHeader(F, "nBlock");
     printf("File F contains: %ld blocks\n\n", N);
     
+    // allocating M buffers
     t_block *T = malloc(M * sizeof(t_block));
     if (T == NULL) {
         printf("Error: Memory allocation failed!\n");
@@ -117,8 +132,11 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
     t_TnOF **g = malloc((M - 1) * sizeof(t_TnOF*));
     long *numB = malloc((M - 1) * sizeof(long));
     
+    //current hash range
     int bi = 0;
     int bs = M - 1;
+
+    // Formula: ceil(K/(M-1))
     int num_passes = (int)ceil((double)K / (double)(M - 1));
     
     printf("┌─────────────────────────────────────────────────────────┐\n");
@@ -127,19 +145,18 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
            M - 1, M - 2);
     printf("│  - Buffer for reading F: 1 (T[%d])                      │\n", M - 1);
     printf("│  - Number of passes: %d                                 │\n", num_passes);
-    printf("│  - Formula: ceil(K/(M-1)) = ceil(%d/%d) = %d           │\n", 
-           K, M - 1, num_passes);
     printf("└─────────────────────────────────────────────────────────┘\n\n");
     
     int pass_number = 1;
     
+    // main loop 
     while (bi < K) {
         printf("╔════════════════════════════════════════════════════════════╗\n");
-        printf("║  PASS %d/%d (bi=%d, bs=%d)                                 ║\n", 
-               pass_number, num_passes, bi, bs);
+        printf("║  PASS %d/%d (bi=%d, bs=%d)                                 ║\n", pass_number, num_passes, bi, bs);
         printf("╚════════════════════════════════════════════════════════════╝\n");
         
-        printf("Opening fragments: ");
+        // Open fragment files for current pass range
+        printf("openin fragments: ");
         for (int x = bi; x < bs && x < K; x++) {
             char fname[50];
             get_fragment_filename(x, fname);
@@ -155,6 +172,7 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
         }
         printf("\n");
         
+        // Read source file and distribute records to fragments
         printf("Scanning all %ld blocks of F...\n", N);
         
         int records_distributed = 0;
@@ -162,35 +180,41 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
         for (long i = 1; i <= N; i++) {
             TnOF_readBlock(F, i, &T[M - 1]);
             
+            // Process each record in block
             for (int j = 0; j < T[M - 1].nb; j++) {
-                if (T[M - 1].del[j] == '*') continue;
+            // skip deleted records
+            if (T[M - 1].del[j] == '*') continue;
+            
+            // get record hash
+            t_rec record = T[M - 1].tab[j];
+            int x_prime = hash_function(record.key, K);
+            
+            // Check if record belongs to current pass range
+            if (x_prime >= bi && x_prime < bs && x_prime < K) {
+                int x = x_prime - bi;
                 
-                t_rec record = T[M - 1].tab[j];
-                int x_prime = hash_function(record.key, K);
+                if (T[x].nb < MAXTAB) {
+                // Add to buffer
+                T[x].tab[T[x].nb] = record;
+                T[x].del[T[x].nb] = ' ';
+                T[x].nb++;
+                records_distributed++;
+                } else {
+                // Buffer full
+                numB[x]++;
+                TnOF_writeBlock(g[x], numB[x], &T[x]);
                 
-                if (x_prime >= bi && x_prime < bs && x_prime < K) {
-                    int x = x_prime - bi;
-                    
-                    if (T[x].nb < MAXTAB) {
-                        T[x].tab[T[x].nb] = record;
-                        T[x].del[T[x].nb] = ' ';
-                        T[x].nb++;
-                        records_distributed++;
-                    } else {
-                        numB[x]++;
-                        TnOF_writeBlock(g[x], numB[x], &T[x]);
-                        
-                        T[x].tab[0] = record;
-                        T[x].del[0] = ' ';
-                        T[x].nb = 1;
-                        records_distributed++;
-                    }
+                // new buffer 
+                T[x].tab[0] = record;
+                T[x].del[0] = ' ';
+                T[x].nb = 1;
+                records_distributed++;
                 }
+            }
             }
         }
         
-        printf("Writing remaining buffers...\n");
-        
+        // Writing remaining buffers
         for (int x = bi; x < bs && x < K; x++) {
             int buffer_index = x - bi;
             
@@ -201,6 +225,7 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
             
             setHeader(g[buffer_index], "nBlock", numB[buffer_index]);
             
+            // total record count
             long total_records = 0;
             if (numB[buffer_index] > 0) {
                 for (long blk = 1; blk <= numB[buffer_index]; blk++) {
@@ -209,6 +234,7 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
                     total_records += temp_buf.nb;
                 }
             }
+        
             setHeader(g[buffer_index], "nIns", total_records);
             
             TnOF_close(g[buffer_index]);
@@ -216,13 +242,15 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
         
         printf("✓ Pass %d complete: %d records distributed\n\n", pass_number, records_distributed);
         
+        // next fragments range
         bi = bs;
         bs = bs + M - 1;
         if (bs > K) bs = K;
-       
+    
         pass_number++;
     }
     
+    //finish
     TnOF_close(F);
     free(T);
     free(g);
@@ -234,7 +262,7 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
     printf("╚════════════════════════════════════════════════════════════╝\n\n");
     
     printf("┌─────────────────────────────────────────────────────────┐\n");
-    printf("│ COST ANALYSIS :                                        │\n");
+    printf("│ COST ANALYSIS :                                         │\n");
     printf("│  - Number of passes: K/(M-1) = %d/%d ≈ %d              │\n", 
            K, M - 1, num_passes);
     printf("│  - Total reads: K*N/(M-1) = %d*%ld/%d = %ld            │\n", 
@@ -487,4 +515,5 @@ void create_sample_file(char *filename, int num_records)
     printf("Sample file created successfully!\n\n");
 
 }
+
 
