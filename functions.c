@@ -217,7 +217,9 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
         printf("✓ Pass %d complete: %d records distributed\n\n", pass_number, records_distributed);
         
         bi = bs;
-        bs = (bs + M - 1 < K) ? bs + M - 1 : K;
+        bs = bs + M - 1;
+        if (bs > K) bs = K;
+       
         pass_number++;
     }
     
@@ -485,3 +487,4 @@ void create_sample_file(char *filename, int num_records)
     printf("Sample file created successfully!\n\n");
 
 }
+
