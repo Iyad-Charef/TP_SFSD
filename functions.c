@@ -232,7 +232,7 @@ void partition_file_by_hashing(char *source_filename, int K, int M)
     printf("╚════════════════════════════════════════════════════════════╝\n\n");
     
     printf("┌─────────────────────────────────────────────────────────┐\n");
-    printf("│ COST ANALYSIS (Based on Official Solution Q3b):        │\n");
+    printf("│ COST ANALYSIS :                                        │\n");
     printf("│  - Number of passes: K/(M-1) = %d/%d ≈ %d              │\n", 
            K, M - 1, num_passes);
     printf("│  - Total reads: K*N/(M-1) = %d*%ld/%d = %ld            │\n", 
@@ -483,4 +483,5 @@ void create_sample_file(char *filename, int num_records)
     
     TnOF_close(file);
     printf("Sample file created successfully!\n\n");
+
 }
